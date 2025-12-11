@@ -24,7 +24,7 @@ target/
 /nbbuild/
 /dist/
 /nbdist/
-/.nb-gradle/
+/nb-gradle/
 build/
 !**/src/main/**/build/
 !**/src/test/**/build/
@@ -32,10 +32,7 @@ build/
 ### VS Code ###
 .vscode/
 
-### Docker ###
-Dockerfile
-docker-compose.yml
-
 ### Spring Boot Sensitive Config ###
 application.yml
 application-*.yml
+application.properties
