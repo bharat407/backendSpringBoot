@@ -33,6 +33,13 @@ build/
 .vscode/
 
 ### Spring Boot Sensitive Config ###
+# Ignore main config files
 application.yml
 application-*.yml
 application.properties
+
+# Ignore test config file
+src/test/resources/application.properties
+
+# Optional: ignore test YAML configs too
+src/test/resources/application-*.yml
