@@ -21,6 +21,7 @@ class BookingServiceTest {
     private UserRepository userRepository;
     private BookingEventPublisher bookingEventPublisher;
     private EntityManager entityManager;
+    private BookingMapper bookingMapper;
 
     private BookingService bookingService;
 
@@ -31,16 +32,15 @@ class BookingServiceTest {
         userRepository = mock(UserRepository.class);
         bookingEventPublisher = mock(BookingEventPublisher.class);
         entityManager = mock(EntityManager.class);
+        bookingMapper = new BookingMapper(); // Using real mapper for simplicity
 
         bookingService = new BookingService(
                 showRepository,
                 bookingRepository,
                 userRepository,
-                bookingEventPublisher
+                bookingEventPublisher,
+                bookingMapper
         );
-        // inject entityManager via reflection
-        bookingService.getClass()
-                .getDeclaredFields();
         TestUtils.setField(bookingService, "entityManager", entityManager);
 
         // mock logged-in user
@@ -59,8 +59,11 @@ class BookingServiceTest {
                 .email("test@example.com")
                 .build();
 
+        Event event = Event.builder().id(1L).title("Test Event").durationMinutes(120).build();
+
         Show show = Show.builder()
                 .id(10L)
+                .event(event)
                 .totalSeats(100)
                 .bookedSeats(90)
                 .build();
@@ -83,10 +86,10 @@ class BookingServiceTest {
         BookingRequest request = new BookingRequest(10L, 5);
 
         // when
-        Booking result = bookingService.book(request);
+        BookingResponse result = bookingService.book(request);
 
         // then
-        assertThat(result.getId()).isEqualTo(99L);
+        assertThat(result.id()).isEqualTo(99L);
         assertThat(show.getBookedSeats()).isEqualTo(95);
 
         verify(showRepository).save(show);

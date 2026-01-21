@@ -17,6 +17,7 @@ public class BookingService {
     private final BookingRepository bookingRepository;
     private final UserRepository userRepository;
     private final BookingEventPublisher bookingEventPublisher;
+    private final BookingMapper bookingMapper;
 
     @PersistenceContext
     private EntityManager entityManager;
@@ -24,15 +25,17 @@ public class BookingService {
     public BookingService(ShowRepository showRepository,
                           BookingRepository bookingRepository,
                           UserRepository userRepository,
-                          BookingEventPublisher bookingEventPublisher) {
+                          BookingEventPublisher bookingEventPublisher,
+                          BookingMapper bookingMapper) {
         this.showRepository = showRepository;
         this.bookingRepository = bookingRepository;
         this.userRepository = userRepository;
         this.bookingEventPublisher = bookingEventPublisher;
+        this.bookingMapper = bookingMapper;
     }
 
     @Transactional
-    public Booking book(BookingRequest request) {
+    public BookingResponse book(BookingRequest request) {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         String email = auth.getName();
         User user = userRepository.findByEmail(email).orElseThrow();
@@ -63,6 +66,14 @@ public class BookingService {
                 new BookingConfirmedEvent(saved.getId(), user.getId(), show.getId())
         );
 
-        return saved;
+        return bookingMapper.toBookingResponse(saved);
+    }
+    @Transactional(readOnly = true)
+    public java.util.List<BookingResponse> getUserBookings() {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        String email = auth.getName();
+        return bookingRepository.findByUserEmail(email).stream()
+                .map(bookingMapper::toBookingResponse)
+                .toList();
     }
 }

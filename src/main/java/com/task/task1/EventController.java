@@ -1,5 +1,6 @@
 package com.task.task1;
 
+import jakarta.validation.Valid;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
@@ -17,7 +18,7 @@ public class EventController {
 
     @PreAuthorize("hasRole('ADMIN')")
     @PostMapping
-    public Event create(@RequestBody Event event) {
+    public Event create(@Valid @RequestBody Event event) {
         return eventRepository.save(event);
     }
 
@@ -27,5 +28,11 @@ public class EventController {
             return eventRepository.findByCityIgnoreCase(city);
         }
         return eventRepository.findAll();
+    }
+
+    @PreAuthorize("hasRole('ADMIN')")
+    @DeleteMapping("/{id}")
+    public void delete(@PathVariable Long id) {
+        eventRepository.deleteById(id);
     }
 }

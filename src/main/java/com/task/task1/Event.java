@@ -1,7 +1,10 @@
 package com.task.task1;
 
 import jakarta.persistence.*;
+import jakarta.validation.constraints.Min;
 import lombok.*;
+
+import java.time.LocalTime;
 
 @Entity
 @Table(name = "events")
@@ -22,6 +25,11 @@ public class Event {
     private String city;
     private String language;
     private String genre;
+
+    private LocalTime time;
+
+    @Min(value = 1, message = "Duration must be a positive number")
     private Integer durationMinutes;
+
     private String rating;
 }

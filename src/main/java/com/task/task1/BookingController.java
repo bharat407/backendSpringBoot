@@ -15,7 +15,12 @@ public class BookingController {
 
     @PreAuthorize("hasRole('USER')")
     @PostMapping
-    public Booking create(@RequestBody BookingRequest request) {
+    public BookingResponse create(@RequestBody BookingRequest request) {
         return bookingService.book(request);
+    }
+    @PreAuthorize("hasRole('USER')")
+    @GetMapping
+    public java.util.List<BookingResponse> list() {
+        return bookingService.getUserBookings();
     }
 }
