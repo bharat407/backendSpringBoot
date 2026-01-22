@@ -11,11 +11,12 @@ const Layout = () => {
 
     const navItems = [
         { name: 'Events', path: '/', icon: Calendar },
-        { name: 'My Bookings', path: '/bookings', icon: Ticket },
     ];
 
     if (user?.roles?.includes('ADMIN')) {
         navItems.push({ name: 'Admin Dashboard', path: '/admin', icon: Film });
+    } else {
+        navItems.push({ name: 'My Bookings', path: '/bookings', icon: Ticket });
     }
 
     return (

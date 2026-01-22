@@ -4,6 +4,7 @@ import java.time.LocalDateTime;
 
 public record BookingResponse(
     Long id,
+    String userEmail,
     ShowResponse show,
     String seatNumbers,
     LocalDateTime createdAt

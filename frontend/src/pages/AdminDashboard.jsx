@@ -4,16 +4,20 @@ import { motion, AnimatePresence } from 'framer-motion';
 import Button from '../components/ui/Button';
 import Input from '../components/ui/Input';
 import { useAuth } from '../context/AuthContext';
-import { PlusCircle, Save, Trash2, Calendar, Clock, MapPin, Users } from 'lucide-react';
+import { PlusCircle, Save, Trash2, Calendar, Clock, MapPin, Users, Edit, X } from 'lucide-react';
 
 const AdminDashboard = () => {
     const { user } = useAuth();
     const isAdmin = user?.roles?.includes('ADMIN');
 
-    const [activeTab, setActiveTab] = useState('events'); // 'events', 'create-event', 'create-show'
+    const [activeTab, setActiveTab] = useState('events'); // 'events', 'create-event', 'create-show', 'bookings'
     const [events, setEvents] = useState([]);
     const [allShows, setAllShows] = useState([]);
+    const [allBookings, setAllBookings] = useState([]);
     
+    const [editingEventId, setEditingEventId] = useState(null);
+    const [editingShowId, setEditingShowId] = useState(null);
+
     const [eventData, setEventData] = useState({ 
         title: '', 
         city: '', 
@@ -39,16 +43,18 @@ const AdminDashboard = () => {
         if (isAdmin) {
             fetchEvents();
             fetchShows();
+            fetchBookings();
         }
     }, [isAdmin]);
 
-    // Auto-calculate end time when start time or event changes
+    // Auto-calculate end time
     useEffect(() => {
         if (showData.startTime && showData.eventId) {
             const selectedEvent = events.find(e => e.id === parseInt(showData.eventId));
             if (selectedEvent && selectedEvent.durationMinutes) {
                 const start = new Date(showData.startTime);
                 const end = new Date(start.getTime() + selectedEvent.durationMinutes * 60000);
+                // Format: YYYY-MM-DDTHH:mm
                 const year = end.getFullYear();
                 const month = (end.getMonth() + 1).toString().padStart(2, '0');
                 const day = end.getDate().toString().padStart(2, '0');
@@ -77,10 +83,55 @@ const AdminDashboard = () => {
         }
     };
 
+    const fetchBookings = async () => {
+        try {
+            const res = await api.get('/api/bookings/all');
+            setAllBookings(res.data);
+        } catch (error) {
+            console.error("Failed to fetch all bookings", error);
+        }
+    };
+
+    const resetForms = () => {
+        setEventData({ title: '', city: '', language: '', genre: '', durationMinutes: '', rating: '' });
+        setShowData({ eventId: '', venueName: '', auditoriumName: '', startTime: '', totalSeats: '' });
+        setEditingEventId(null);
+        setEditingShowId(null);
+        setShowEndTime('');
+        setValidationErrors({});
+        setStatus({ loading: false, success: '', error: '' });
+    };
+
+    const handleEditEvent = (event) => {
+        resetForms();
+        setEventData({
+            title: event.title,
+            city: event.city,
+            language: event.language,
+            genre: event.genre,
+            durationMinutes: event.durationMinutes,
+            rating: event.rating
+        });
+        setEditingEventId(event.id);
+        setActiveTab('create-event');
+    };
+
+    const handleEditShow = (show) => {
+        resetForms();
+        setShowData({
+            eventId: show.event.id,
+            venueName: show.venueName,
+            auditoriumName: show.auditoriumName,
+            startTime: show.startTime,
+            totalSeats: show.totalSeats
+        });
+        setEditingShowId(show.id);
+        setActiveTab('create-show');
+    };
+
     const handleEventSubmit = async (e) => {
         e.preventDefault();
         
-        // Validation
         const errors = {};
         const duration = parseInt(eventData.durationMinutes);
         if (isNaN(duration) || duration <= 0) {
@@ -96,16 +147,27 @@ const AdminDashboard = () => {
 
         setStatus({ loading: true, success: '', error: '' });
         try {
-            await api.post('/api/events', {
-                ...eventData,
-                durationMinutes: parseInt(eventData.durationMinutes)
-            });
-            setStatus({ loading: false, success: 'Event created successfully!', error: '' });
+            if (editingEventId) {
+                await api.put(`/api/events/${editingEventId}`, {
+                    ...eventData,
+                    durationMinutes: parseInt(eventData.durationMinutes)
+                });
+                setStatus({ loading: false, success: 'Event updated successfully!', error: '' });
+            } else {
+                await api.post('/api/events', {
+                    ...eventData,
+                    durationMinutes: parseInt(eventData.durationMinutes)
+                });
+                setStatus({ loading: false, success: 'Event created successfully!', error: '' });
+            }
+            
             setEventData({ title: '', city: '', language: '', genre: '', durationMinutes: '', rating: '' });
+            setEditingEventId(null);
             fetchEvents();
+            fetchShows(); // Update shows as they might reference updated event info
             setTimeout(() => setActiveTab('events'), 1500);
         } catch (err) {
-            const apiError = err.response?.data?.message || 'Failed to create event.';
+            const apiError = err.response?.data?.message || `Failed to ${editingEventId ? 'update' : 'create'} event.`;
             if (err.response?.data?.errors) {
                 const backendErrors = err.response.data.errors.reduce((acc, error) => {
                     acc[error.field] = error.defaultMessage;
@@ -129,19 +191,31 @@ const AdminDashboard = () => {
 
         setStatus({ loading: true, success: '', error: '' });
         try {
-            await api.post('/api/shows', {
-                ...showData,
-                eventId: parseInt(showData.eventId),
-                startTime: showData.startTime,
-                totalSeats: parseInt(showData.totalSeats)
-            });
-            setStatus({ loading: false, success: 'Show created successfully!', error: '' });
+            if (editingShowId) {
+                await api.put(`/api/shows/${editingShowId}`, {
+                    ...showData,
+                    eventId: parseInt(showData.eventId),
+                    startTime: showData.startTime,
+                    totalSeats: parseInt(showData.totalSeats)
+                });
+                setStatus({ loading: false, success: 'Show updated successfully!', error: '' });
+            } else {
+                await api.post('/api/shows', {
+                    ...showData,
+                    eventId: parseInt(showData.eventId),
+                    startTime: showData.startTime,
+                    totalSeats: parseInt(showData.totalSeats)
+                });
+                setStatus({ loading: false, success: 'Show created successfully!', error: '' });
+            }
+
             setShowData({ eventId: '', venueName: '', auditoriumName: '', startTime: '', totalSeats: '' });
+            setEditingShowId(null);
             setShowEndTime('');
             fetchShows();
             setTimeout(() => setActiveTab('events'), 1500);
         } catch (err) {
-            const apiError = err.response?.data?.message || 'Failed to create show. Ensure Event ID exists.';
+            const apiError = err.response?.data?.message || `Failed to ${editingShowId ? 'update' : 'create'} show.`;
             if (err.response?.data?.errors) {
                 const backendErrors = err.response.data.errors.reduce((acc, error) => {
                     acc[error.field] = error.defaultMessage;
@@ -160,7 +234,7 @@ const AdminDashboard = () => {
             await api.delete(`/api/shows/${showId}`);
             setStatus({ loading: false, success: 'Show deleted successfully!', error: '' });
             fetchShows();
-            fetchEvents(); // Refresh to check if event should be auto-deleted
+            fetchEvents();
         } catch (err) {
             setStatus({ loading: false, success: '', error: 'Failed to delete show.' });
         }
@@ -185,7 +259,6 @@ const AdminDashboard = () => {
         }
     };
 
-    // Get current datetime for min attribute
     const getCurrentDateTime = () => {
         const now = new Date();
         now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
@@ -207,7 +280,7 @@ const AdminDashboard = () => {
 
             <div className="flex flex-wrap gap-4 border-b border-gray-200 pb-4">
                 <button 
-                    onClick={() => setActiveTab('events')}
+                    onClick={() => { resetForms(); setActiveTab('events'); }}
                     className={`px-6 py-2.5 font-medium rounded-lg transition-all ${
                         activeTab === 'events' 
                             ? 'bg-primary-600 text-white shadow-lg shadow-primary-500/30' 
@@ -217,24 +290,34 @@ const AdminDashboard = () => {
                     View All Events & Shows
                 </button>
                 <button 
-                    onClick={() => setActiveTab('create-event')}
+                    onClick={() => { resetForms(); setActiveTab('create-event'); }}
                     className={`px-6 py-2.5 font-medium rounded-lg transition-all ${
                         activeTab === 'create-event' 
                             ? 'bg-primary-600 text-white shadow-lg shadow-primary-500/30' 
                             : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                     }`}
                 >
-                    Create Event
+                    {editingEventId ? 'Edit Event' : 'Create Event'}
                 </button>
                 <button 
-                    onClick={() => setActiveTab('create-show')}
+                    onClick={() => { resetForms(); setActiveTab('create-show'); }}
                     className={`px-6 py-2.5 font-medium rounded-lg transition-all ${
                         activeTab === 'create-show' 
                             ? 'bg-primary-600 text-white shadow-lg shadow-primary-500/30' 
                             : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                     }`}
                 >
-                    Create Show
+                    {editingShowId ? 'Edit Show' : 'Create Show'}
+                </button>
+                <button 
+                    onClick={() => { resetForms(); setActiveTab('bookings'); }}
+                    className={`px-6 py-2.5 font-medium rounded-lg transition-all ${
+                        activeTab === 'bookings' 
+                            ? 'bg-primary-600 text-white shadow-lg shadow-primary-500/30' 
+                            : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                    }`}
+                >
+                    View All Bookings
                 </button>
             </div>
 
@@ -265,13 +348,22 @@ const AdminDashboard = () => {
                                                 <span className="bg-gray-100 px-2 py-0.5 rounded">{event.rating}</span>
                                             </div>
                                         </div>
-                                        <button
-                                            onClick={() => handleDeleteEvent(event.id)}
-                                            className="px-4 py-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition-colors flex items-center"
-                                        >
-                                            <Trash2 className="w-4 h-4 mr-2" />
-                                            Delete Event
-                                        </button>
+                                        <div className="flex items-center gap-2">
+                                            <button
+                                                onClick={() => handleEditEvent(event)}
+                                                className="px-4 py-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors flex items-center"
+                                            >
+                                                <Edit className="w-4 h-4 mr-2" />
+                                                Edit
+                                            </button>
+                                            <button
+                                                onClick={() => handleDeleteEvent(event.id)}
+                                                className="px-4 py-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition-colors flex items-center"
+                                            >
+                                                <Trash2 className="w-4 h-4 mr-2" />
+                                                Delete
+                                            </button>
+                                        </div>
                                     </div>
 
                                     <div className="mt-6">
@@ -289,13 +381,22 @@ const AdminDashboard = () => {
                                                                 <h4 className="font-semibold text-gray-900">{show.venueName}</h4>
                                                                 <p className="text-sm text-gray-500">{show.auditoriumName}</p>
                                                             </div>
-                                                            <button
-                                                                onClick={() => handleDeleteShow(show.id)}
-                                                                className="text-red-600 hover:bg-red-100 p-1.5 rounded transition-colors"
-                                                                title="Delete Show"
-                                                            >
-                                                                <Trash2 className="w-4 h-4" />
-                                                            </button>
+                                                            <div className="flex gap-2">
+                                                                <button
+                                                                    onClick={() => handleEditShow(show)}
+                                                                    className="text-blue-600 hover:bg-blue-100 p-1.5 rounded transition-colors"
+                                                                    title="Edit Show"
+                                                                >
+                                                                    <Edit className="w-4 h-4" />
+                                                                </button>
+                                                                <button
+                                                                    onClick={() => handleDeleteShow(show.id)}
+                                                                    className="text-red-600 hover:bg-red-100 p-1.5 rounded transition-colors"
+                                                                    title="Delete Show"
+                                                                >
+                                                                    <Trash2 className="w-4 h-4" />
+                                                                </button>
+                                                            </div>
                                                         </div>
                                                         <div className="space-y-1 text-sm text-gray-600">
                                                             <div className="flex items-center">
@@ -327,7 +428,16 @@ const AdminDashboard = () => {
                         className="bg-white p-8 rounded-2xl shadow-sm border border-gray-100"
                     >
                         <form onSubmit={handleEventSubmit} className="space-y-6">
-                            <h2 className="text-xl font-bold flex items-center"><PlusCircle className="w-5 h-5 mr-2"/> Create New Event</h2>
+                            <div className="flex justify-between items-center">
+                                <h2 className="text-xl font-bold flex items-center">
+                                    <PlusCircle className="w-5 h-5 mr-2"/> {editingEventId ? 'Edit Event' : 'Create New Event'}
+                                </h2>
+                                {editingEventId && (
+                                    <button type="button" onClick={() => { resetForms(); setActiveTab('events'); }} className="text-gray-500 hover:text-gray-700">
+                                        <X className="w-5 h-5" />
+                                    </button>
+                                )}
+                            </div>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                 <Input 
                                     label="Event Title" 
@@ -375,7 +485,9 @@ const AdminDashboard = () => {
                                     placeholder="e.g. PG-13" 
                                 />
                             </div>
-                            <Button type="submit" isLoading={status.loading}><Save className="w-4 h-4 mr-2"/> Save Event</Button>
+                            <Button type="submit" isLoading={status.loading}>
+                                <Save className="w-4 h-4 mr-2"/> {editingEventId ? 'Update Event' : 'Save Event'}
+                            </Button>
                         </form>
                     </motion.div>
                 )}
@@ -389,7 +501,16 @@ const AdminDashboard = () => {
                         className="bg-white p-8 rounded-2xl shadow-sm border border-gray-100"
                     >
                         <form onSubmit={handleShowSubmit} className="space-y-6">
-                            <h2 className="text-xl font-bold flex items-center"><PlusCircle className="w-5 h-5 mr-2"/> Create New Show</h2>
+                            <div className="flex justify-between items-center">
+                                <h2 className="text-xl font-bold flex items-center">
+                                    <PlusCircle className="w-5 h-5 mr-2"/> {editingShowId ? 'Edit Show' : 'Create New Show'}
+                                </h2>
+                                {editingShowId && (
+                                    <button type="button" onClick={() => { resetForms(); setActiveTab('events'); }} className="text-gray-500 hover:text-gray-700">
+                                        <X className="w-5 h-5" />
+                                    </button>
+                                )}
+                            </div>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 mb-1">Select Event</label>
@@ -450,8 +571,64 @@ const AdminDashboard = () => {
                                     />
                                 </div>
                             </div>
-                             <Button type="submit" isLoading={status.loading}><Save className="w-4 h-4 mr-2"/> Save Show</Button>
+                             <Button type="submit" isLoading={status.loading}>
+                                 <Save className="w-4 h-4 mr-2"/> {editingShowId ? 'Update Show' : 'Save Show'}
+                             </Button>
                         </form>
+                    </motion.div>
+                )}
+
+                {activeTab === 'bookings' && (
+                    <motion.div
+                        key="bookings"
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -10 }}
+                        className="bg-white p-8 rounded-2xl shadow-sm border border-gray-100 overflow-x-auto"
+                    >
+                        <h2 className="text-xl font-bold mb-6">All User Bookings</h2>
+                        <table className="w-full text-left border-collapse">
+                            <thead>
+                                <tr className="border-b border-gray-200 text-sm text-gray-500">
+                                    <th className="py-3 px-4 font-semibold">Booking ID</th>
+                                    <th className="py-3 px-4 font-semibold">User Email</th>
+                                    <th className="py-3 px-4 font-semibold">Event</th>
+                                    <th className="py-3 px-4 font-semibold">Venue</th>
+                                    <th className="py-3 px-4 font-semibold">Seats</th>
+                                    <th className="py-3 px-4 font-semibold">Date</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-gray-50">
+                                {allBookings.length === 0 ? (
+                                    <tr>
+                                        <td colSpan="6" className="py-8 text-center text-gray-500 italic">No bookings found</td>
+                                    </tr>
+                                ) : (
+                                    allBookings.map((booking) => (
+                                        <tr key={booking.id} className="text-sm hover:bg-gray-50 transition-colors">
+                                            <td className="py-4 px-4 font-medium text-gray-900">#{booking.id}</td>
+                                            <td className="py-4 px-4 text-gray-600">{booking.userEmail}</td>
+                                            <td className="py-4 px-4">
+                                                <div className="font-medium text-gray-900">{booking.show?.event?.title}</div>
+                                                <div className="text-xs text-gray-500">{booking.show?.event?.city}</div>
+                                            </td>
+                                            <td className="py-4 px-4">
+                                                <div className="text-gray-900">{booking.show?.venueName}</div>
+                                                <div className="text-xs text-gray-500">{new Date(booking.show?.startTime).toLocaleString()}</div>
+                                            </td>
+                                            <td className="py-4 px-4">
+                                                <span className="bg-primary-50 text-primary-700 px-2.5 py-1 rounded-full text-xs font-semibold">
+                                                    {booking.seatNumbers?.replace('AUTO_', '')} Seats
+                                                </span>
+                                            </td>
+                                            <td className="py-4 px-4 text-gray-500">
+                                                {new Date(booking.createdAt).toLocaleDateString()}
+                                            </td>
+                                        </tr>
+                                    ))
+                                )}
+                            </tbody>
+                        </table>
                     </motion.div>
                 )}
             </AnimatePresence>

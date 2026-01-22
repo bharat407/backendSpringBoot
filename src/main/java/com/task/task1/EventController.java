@@ -22,6 +22,19 @@ public class EventController {
         return eventRepository.save(event);
     }
 
+    @PreAuthorize("hasRole('ADMIN')")
+    @PutMapping("/{id}")
+    public Event update(@PathVariable Long id, @Valid @RequestBody Event eventDetails) {
+        Event event = eventRepository.findById(id).orElseThrow(() -> new RuntimeException("Event not found"));
+        event.setTitle(eventDetails.getTitle());
+        event.setCity(eventDetails.getCity());
+        event.setGenre(eventDetails.getGenre());
+        event.setLanguage(eventDetails.getLanguage());
+        event.setDurationMinutes(eventDetails.getDurationMinutes());
+        event.setRating(eventDetails.getRating());
+        return eventRepository.save(event);
+    }
+
     @GetMapping
     public List<Event> list(@RequestParam(required = false) String city) {
         if (city != null && !city.isBlank()) {

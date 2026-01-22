@@ -27,7 +27,8 @@ class AuthControllerTest {
                 "Test User",
                 "mockuser@example.com",
                 "9999999999",
-                "Secret123!"
+                "Secret123!",
+                "USER"
         );
 
         mockMvc.perform(post("/api/auth/register")

@@ -76,4 +76,11 @@ public class BookingService {
                 .map(bookingMapper::toBookingResponse)
                 .toList();
     }
+
+    @Transactional(readOnly = true)
+    public java.util.List<BookingResponse> getAllBookings() {
+        return bookingRepository.findAll().stream()
+                .map(bookingMapper::toBookingResponse)
+                .toList();
+    }
 }

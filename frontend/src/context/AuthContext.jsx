@@ -19,7 +19,9 @@ export const AuthProvider = ({ children }) => {
                 if (decoded.exp < currentTime) {
                     logout();
                 } else {
-                    setUser({ ...decoded, email: decoded.sub });
+                    const roles = decoded.roles ? decoded.roles.split(',') : [];
+                    setUser({ ...decoded, email: decoded.sub, roles });
+                    setLoading(false); // Done updating state
                     const timeLeft = (decoded.exp - currentTime) * 1000;
                     const timer = setTimeout(() => {
                          logout();
@@ -29,23 +31,30 @@ export const AuthProvider = ({ children }) => {
                 }
             } catch (e) {
                 logout();
+                setLoading(false);
             }
         } else {
             setUser(null);
+            setLoading(false);
         }
-        setLoading(false);
     }, [token]);
 
     const login = async (email, password) => {
+        setLoading(true);
         try {
             const res = await api.post('/api/auth/login', { email, password });
             const newToken = res.data.token;
             localStorage.setItem('token', newToken);
             const decoded = jwtDecode(newToken);
-            setUser({ ...decoded, email: decoded.sub });
+            const roles = decoded.roles ? decoded.roles.split(',') : [];
+            const userObj = { ...decoded, email: decoded.sub, roles };
             setToken(newToken);
-            return true;
+            setUser(userObj);
+            // We don't set loading to false here immediately 
+            // because the useEffect will handle it when token changes
+            return userObj;
         } catch (error) {
+            setLoading(false);
             console.error(error);
             throw error;
         }
@@ -60,7 +69,7 @@ export const AuthProvider = ({ children }) => {
         localStorage.removeItem('token');
         setToken(null);
         setUser(null);
-        window.location.href = '/login';
+        setLoading(false);
     };
 
     return (

@@ -14,6 +14,7 @@ public class BookingMapper {
 
         return new BookingResponse(
             booking.getId(),
+            booking.getUser().getEmail(),
             showResponse,
             booking.getSeatNumbers(),
             booking.getCreatedAt()

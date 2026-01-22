@@ -34,12 +34,14 @@ public class AuthController {
             return ResponseEntity.badRequest().build();
         }
 
+        String role = (request.role() != null && request.role().equalsIgnoreCase("ADMIN")) ? "ADMIN" : "USER";
+
         User user = User.builder()
                 .name(request.name())
                 .email(request.email())
                 .phone(request.phone())
                 .passwordHash(passwordEncoder.encode(request.password()))
-                .roles(Set.of("USER", "ADMIN"))
+                .roles(role.equals("USER") ? Set.of("USER") : Set.of("USER", role))
                 .build();
 
         userRepository.save(user);

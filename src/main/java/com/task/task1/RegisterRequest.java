@@ -7,5 +7,6 @@ public record RegisterRequest(
         @NotEmpty String name,
         @NotEmpty @Email String email,
         @NotEmpty String phone,
-        @NotEmpty String password
+        @NotEmpty String password,
+        String role
 ) {}

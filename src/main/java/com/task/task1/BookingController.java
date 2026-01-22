@@ -23,4 +23,10 @@ public class BookingController {
     public java.util.List<BookingResponse> list() {
         return bookingService.getUserBookings();
     }
+
+    @PreAuthorize("hasRole('ADMIN')")
+    @GetMapping("/all")
+    public java.util.List<BookingResponse> listAll() {
+        return bookingService.getAllBookings();
+    }
 }

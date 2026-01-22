@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useLocation, useNavigate } from 'react-router-dom';
 import api from '../api/axios';
 import Button from '../components/ui/Button';
+import { useAuth } from '../context/AuthContext';
 import { Calendar, Clock, MapPin, Users } from 'lucide-react';
 import { motion } from 'framer-motion';
 
@@ -9,9 +10,12 @@ const EventShows = () => {
     const { eventId } = useParams();
     const { state } = useLocation();
     const navigate = useNavigate();
+    const { user } = useAuth();
     const [shows, setShows] = useState([]);
     const [loading, setLoading] = useState(true);
     const [event, setEvent] = useState(state?.event);
+    
+    const isAdmin = user?.roles?.includes('ADMIN');
 
     useEffect(() => {
         const fetchData = async () => {
@@ -99,10 +103,10 @@ const EventShows = () => {
                             
                             <Button 
                                 onClick={() => navigate(`/book/${show.id}`, { state: { show, event } })}
-                                disabled={show.totalSeats - (show.bookedSeats || 0) <= 0}
+                                disabled={isAdmin || show.totalSeats - (show.bookedSeats || 0) <= 0}
                                 className="w-full"
                             >
-                                {show.totalSeats - (show.bookedSeats || 0) <= 0 ? 'Sold Out' : 'Book Seats'}
+                                {isAdmin ? 'Admin View Only' : (show.totalSeats - (show.bookedSeats || 0) <= 0 ? 'Sold Out' : 'Book Seats')}
                             </Button>
                         </motion.div>
                     ))}

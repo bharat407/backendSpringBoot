@@ -40,6 +40,29 @@ public class ShowController {
         return showRepository.save(show);
     }
 
+    @PreAuthorize("hasRole('ADMIN')")
+    @PutMapping("/{id}")
+    public Show update(@PathVariable Long id, @Valid @RequestBody ShowRequest request) {
+        Show show = showRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Show not found"));
+
+        Event event = eventRepository.findById(request.eventId())
+                .orElseThrow(() -> new IllegalArgumentException("Event not found"));
+        
+        show.setEvent(event);
+        show.setVenueName(request.venueName());
+        show.setAuditoriumName(request.auditoriumName());
+        show.setStartTime(request.startTime());
+        
+        // Recalculate end time
+        LocalDateTime endTime = request.startTime().plusMinutes(event.getDurationMinutes());
+        show.setEndTime(endTime);
+        
+        show.setTotalSeats(request.totalSeats());
+        
+        return showRepository.save(show);
+    }
+
     @GetMapping
     public List<Show> list() {
         return showRepository.findAll();

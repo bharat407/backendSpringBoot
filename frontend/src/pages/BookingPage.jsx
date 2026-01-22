@@ -20,6 +20,17 @@ const BookingPage = () => {
 
     const show = state?.show;
     const event = state?.event;
+    const isAdmin = user?.roles?.includes('ADMIN');
+
+    if (isAdmin) {
+        return (
+            <div className="min-h-[60vh] flex flex-col items-center justify-center text-center space-y-4">
+                <h2 className="text-2xl font-bold text-gray-900">Admin Access Restricted</h2>
+                <p className="text-gray-500">Administrators cannot book seats. Please log in as a user.</p>
+                <Button onClick={() => navigate(-1)}>Go Back</Button>
+            </div>
+        );
+    }
 
     if (!show || !event) {
         // Handle direct access or missing state logic if needed
